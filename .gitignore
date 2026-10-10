@@ -1,0 +1,13 @@
+_bmad-output/
+__pycache__/
+*.pyc
+.venv/
+mlflow/
+.env
+data/*.parquet
+data/*.csv
+chroma/
+data/audit_log.jsonl
+data/drift_runs.jsonl
+data/PROVENANCE.md
+chroma/

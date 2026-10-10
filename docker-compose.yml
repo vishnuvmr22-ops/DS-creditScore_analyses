@@ -1,0 +1,60 @@
+# Brings up API + MLflow + Next.js operator console with a single `docker compose up`.
+
+services:
+  mlflow:
+    build: .
+    image: creditsentinel:latest
+    entrypoint: []
+    # --allowed-hosts "*" disables DNS-rebinding host validation. Acceptable here
+    # because MLflow is only reachable on the private compose network (the :5000
+    # host mapping is for the local tracking UI on a dev machine).
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////data/mlflow.db
+      --artifacts-destination /data/artifacts
+      --serve-artifacts
+      --allowed-hosts "*"
+    volumes:
+      - mlflow-data:/data
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build: .
+    image: creditsentinel:latest
+    environment:
+      CS_MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      CS_MLFLOW_ARTIFACT_ROOT: ""          # let the MLflow server manage artifacts
+      # The console runs on the host at :3000 and calls this service from the
+      # browser; that origin must be allowed explicitly (FR-021).
+      CS_CORS_ALLOW_ORIGINS: "http://localhost:3000"
+    ports:
+      - "8080:8000"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  console:
+    build: ./web
+    image: creditsentinel-console:latest
+    environment:
+      # The address the *browser* uses to reach the API — the host mapping, not
+      # the compose-internal name. Resolved per request (FR-023).
+      CS_API_BASE_URL: "http://localhost:8080"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  mlflow-data:

@@ -1,0 +1,13 @@
+.git
+.venv
+mlflow/
+chroma/
+data/*.parquet
+data/*.jsonl
+data/PROVENANCE.md
+_bmad-output/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/
